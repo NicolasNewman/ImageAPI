@@ -1,7 +1,12 @@
 package core;
 
-import java.awt.image.BufferedImage;
-import java.util.ArrayList;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.Arrays;
 
 public class ComplexImage extends SimpleImage {
 
@@ -13,12 +18,8 @@ public class ComplexImage extends SimpleImage {
 		super(w, h);
 	}
 	
-	public ComplexImage(int w, int h, BufferedImage source) {
-		super(w, h, source);
-	}
-	
 	public ComplexImage copy() {
-		ComplexImage img2 = new ComplexImage(width, height, img);
+		ComplexImage img2 = new ComplexImage(width, height);
 		for(int x = 0; x < width; x++) {
 			for(int y = 0; y < height; y++) {
 				int[] rgb = getRGB(x, y);
@@ -190,4 +191,335 @@ public class ComplexImage extends SimpleImage {
 			}
 		}
 	}
+	
+	public void gaussianBlur(int k) {
+		for(int w = 0; w < width; w++) {
+			for(int h = 0; h < height; h++) {
+				int rAvg = 0, gAvg = 0, bAvg = 0;
+				int length = (k*2+1)*(k*2+1);
+				for(int kw = 0; kw < k*2+1; kw++) {
+					for(int kh = 0; kh < k*2+1; kh++) {
+						int[] loc = {w-(k-kw), h-(k-kh)};
+						if(loc[0] > 0 && loc[0] < width) {
+							if(loc[1] > 0 && loc[1] < height) {
+								rAvg += getR(loc[0], loc[1]);
+								gAvg += getG(loc[0], loc[1]);
+								bAvg += getB(loc[0], loc[1]);
+							}
+						}
+					}
+				}
+				rAvg /= length;
+				gAvg /= length;
+				bAvg /= length;
+				setRGB(w, h, rAvg, gAvg, bAvg);
+			}
+		}
+	}
+	
+	public void boxBlur(int k) {
+		for(int w = 0; w < width; w++) {
+			for(int h = 0; h < height; h++) {
+				int rAvg = 0, gAvg = 0, bAvg = 0;
+				int length = (k*2+1);
+				for(int kw = 0; kw < k*2+1; kw++) {
+					int[] loc = {w-(k-kw), h};
+					if(loc[0] > 0 && loc[0] < width) {
+						if(loc[1] > 0 && loc[1] < height) {
+							rAvg += getR(loc[0], loc[1]);
+							gAvg += getG(loc[0], loc[1]);
+							bAvg += getB(loc[0], loc[1]);
+						}
+					}
+				}
+				rAvg /= length;
+				gAvg /= length;
+				bAvg /= length;
+				setRGB(w, h, rAvg, gAvg, bAvg);
+			}
+		}
+		
+		for(int w = 0; w < width; w++) {
+			for(int h = 0; h < height; h++) {
+				int rAvg = 0, gAvg = 0, bAvg = 0;
+				int length = (k*2+1);
+				for(int kh = 0; kh < k*2+1; kh++) {
+					int[] loc = {w, h-(k-kh)};
+					if(loc[0] > 0 && loc[0] < width) {
+						if(loc[1] > 0 && loc[1] < height) {
+							rAvg += getR(loc[0], loc[1]);
+							gAvg += getG(loc[0], loc[1]);
+							bAvg += getB(loc[0], loc[1]);
+						}
+					}
+				}
+				rAvg /= length;
+				gAvg /= length;
+				bAvg /= length;
+				setRGB(w, h, rAvg, gAvg, bAvg);
+			}
+		}
+	}
+	
+	public void cannyEdge(int k, int th1, int th2) {
+		boxBlur(k);
+		nonMaximumSupression(th1, th2);
+	}
+	
+	// https://stackoverflow.com/questions/41468661/sobel-edge-detecting-program-in-java
+	public void sobelOperator() {
+		int[][] gX = {{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}};
+		int[][] gY = {{-1, -2, -1}, {0, 0, 0}, {1, 2, 1}};
+		grayscale();
+		int maxG = -1;
+		int[][] edge = new int[width][height];
+		for(int w = 1; w < width-1; w++) {
+			for(int h = 1; h < height-1; h++) {
+				int pixel_x = (gX[0][0] * getR(w-1,h-1)) + (gX[0][2] * getR(w-1,h+1)) +
+			              (gX[1][0] * getR(w,h-1)) + (gX[1][2] * getR(w,h+1)) +
+			              (gX[2][0] * getR(w+1,h-1)) + (gX[2][2] * getR(w+1,h+1));
+			 
+			    int pixel_y = (gY[0][0] * getR(w-1,h-1)) + (gY[0][1] * getR(w-1,h)) + (gY[0][2] * getR(w-1,h+1)) +
+			              (gY[2][0] * getR(w+1,h-1)) + (gY[2][1] * getR(w+1,h)) + (gY[2][2] * getR(w+1,h+1));
+			    int g = Math.abs(pixel_x) + Math.abs(pixel_y);
+			    if(maxG < g) {
+			    	maxG = g;
+			    }
+			    edge[w][h] = g;
+			}
+		}
+		
+		double scale = 255.0 / maxG;
+		for(int w = 1; w < width-1; w++) {
+			for(int h = 1; h < height-1; h++) {
+				int edgeColor = edge[w][h];
+				edgeColor = (int)(edgeColor*scale);
+				edgeColor = 0xff000000 | (edgeColor << 16) | (edgeColor << 8) | edgeColor;
+				setRGB(w, h, edgeColor);
+			}
+		}
+	}
+	
+	private double roundTheta(double t) {
+		//0 to 45 (22.5) t < 22.5: 0
+		//45 to 90 (67.5) t < 67.5: 45
+		//90 to 135 (112.5) t < 112.5: 90
+		//135 to 0 (157.5) t < 157.5: 135
+		
+		// t < 22.5 or t >= 157.5 : 0
+		// (t >= 22.5 and t <) or t < 67.5 : 45
+		// t >= 67.5 or t < 112.5 : 90
+		// t >= 112.5 or t < 157.5: 135
+		
+		if(t < 22.5 || t >= 157.5) {
+			t = 0;
+		} else if(t >= 22.5 && t < 67.5) {
+			t = 45;
+		} else if(t >= 67.5 && t < 112.5) {
+			t = 90;
+		} else if(t >= 112.5 && t < 157.5) {
+			t = 135;
+		}
+		
+		return t;
+		
+	}
+	
+	public void nonMaximumSupression(int th1, int th2) {
+		int[][] gX = {{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}};
+		int[][] gY = {{1, 2, 1}, {0, 0, 0}, {-1, -2, -1}};
+		grayscale();
+		int maxG = -1;
+		double[][] edge = new double[width][height];
+		int[][] gArray = new int[width][height];
+		double[][] tArray = new double[width][height];
+ 		for(int w = 1; w < width-1; w++) {
+			for(int h = 1; h < height-1; h++) {
+				double pixel_x = (gX[0][0] * getR(w-1,h-1)) + (gX[0][2] * getR(w-1,h+1)) +
+			              (gX[1][0] * getR(w,h-1)) + (gX[1][2] * getR(w,h+1)) +
+			              (gX[2][0] * getR(w+1,h-1)) + (gX[2][2] * getR(w+1,h+1));
+			 
+			    double pixel_y = (gY[0][0] * getR(w-1,h-1)) + (gY[0][1] * getR(w-1,h)) + (gY[0][2] * getR(w-1,h+1)) +
+			              (gY[2][0] * getR(w+1,h-1)) + (gY[2][1] * getR(w+1,h)) + (gY[2][2] * getR(w+1,h+1));
+			    
+			    double g = Math.hypot(pixel_x, pixel_y);
+			    edge[w][h] = g;
+			    
+			    double theta = Math.atan2(pixel_y, pixel_x)*180/Math.PI;
+			    //double theta = Math.atan(pixel_y / pixel_x)*180/Math.PI;
+//			    if(theta < 0) {
+//			    	//theta += 360;
+//			    	//theta = Math.abs(theta);
+//			    	//System.out.println(theta);
+//			    	//theta += 180;
+//			    	theta += 180;
+//			    	//System.out.println(theta);
+//			    }
+			    //System.out.println("Before: " + theta);
+			    theta = Math.abs(theta % 180);
+			    //System.out.println("After: " + theta);
+			    theta = roundTheta(theta);
+			    tArray[w][h] = theta;
+			    
+			    if(maxG < g) {
+			    	maxG = (int) g;
+			    }
+			}
+		}
+ 		
+ 		for(int w = 1; w < width-1; w++) {
+ 			for(int h = 1; h < height-1; h++) {
+ 				if(tArray[w][h] == 0) { // 0
+			    	if(edge[w][h] >= edge[w][h-1] && edge[w][h] >= edge[w][h+1]) {
+			    		//edge[w][h] = edge[w][h];
+			    	} else {
+			    		edge[w][h] = 0;
+			    	}
+			    } else if(tArray[w][h] == 45) { // 45
+			    	if(edge[w][h] >= edge[w-1][h+1] && edge[w][h] >= edge[w+1][h-1]) {
+			    		//edge[w][h] = edge[w][h];
+			    	} else {
+			    		edge[w][h] = 0;
+			    	}
+			    } else if(tArray[w][h] == 90) { // 90
+			    	if(edge[w][h] >= edge[w-1][h] && edge[w][h] >= edge[w+1][h]) {
+			    		//edge[w][h] = edge[w][h];
+			    	} else {
+			    		edge[w][h] = 0;
+			    	}
+			    } else if(tArray[w][h] == 135) { // 135
+			    	if(edge[w][h] >= edge[w-1][h-1] && edge[w][h] >= edge[w+1][h+1]) {
+			    		//edge[w][h] = edge[w][h];
+			    	} else {
+			    		edge[w][h] = 0;
+			    	}
+			    }
+ 			}
+ 		}
+	
+		double scale = 255.0 / maxG;
+		for(int w = 1; w < width-1; w++) {
+			for(int h = 1; h < height-1; h++) {
+				int edgeColor = (int) edge[w][h];
+				edgeColor = (int)(edgeColor*scale);
+				edgeColor = 0xff000000 | (edgeColor << 16) | (edgeColor << 8) | edgeColor;
+				setRGB(w, h, edgeColor);
+			}
+		}
+	}
+	
+	public void sobelOperatorColor() {
+		int[][] gX = {{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}};
+		int[][] gY = {{-1, -2, -1}, {0, 0, 0}, {1, 2, 1}};
+		grayscale();
+		int maxG = -1;
+		int[][] edge = new int[width][height];
+		int[][] color = new int[width][height];
+		for(int w = 1; w < width-1; w++) {
+			for(int h = 1; h < height-1; h++) {
+				int pixel_x = (gX[0][0] * getR(w-1,h-1)) + (gX[0][2] * getR(w-1,h+1)) +
+			              (gX[1][0] * getR(w,h-1)) + (gX[1][2] * getR(w,h+1)) +
+			              (gX[2][0] * getR(w+1,h-1)) + (gX[2][2] * getR(w+1,h+1));
+			 
+			    int pixel_y = (gY[0][0] * getR(w-1,h-1)) + (gY[0][1] * getR(w-1,h)) + (gY[0][2] * getR(w-1,h+1)) +
+			              (gY[2][0] * getR(w+1,h-1)) + (gY[2][1] * getR(w+1,h)) + (gY[2][2] * getR(w+1,h+1));
+			    int g = (int) Math.hypot(pixel_x, pixel_y);
+			    if(maxG < g) {
+			    	maxG = g;
+			    }
+			    edge[w][h] = g;
+			    
+			    if(pixel_x != 0) {
+			    	color[w][h] = (int) Math.floor((Math.atan2(pixel_y, pixel_x)*180/Math.PI));
+			    	if(color[w][h] < 0) {
+			    		color[w][h] = 360 - Math.abs(color[w][h]);
+			    	}
+			    } else {
+			    	color[w][h] = 0;
+			    }
+			}
+		}
+		double scale = 255.0 / maxG;
+		for(int w = 1; w < width-1; w++) {
+			for(int h = 1; h < height-1; h++) {
+				double edgeColor = edge[w][h];
+				edgeColor = (edgeColor*scale);
+				int[] rgb = Color.HSVtoRGB(color[w][h], edgeColor/255, edgeColor/255);
+				setRGB(w, h, rgb[0], rgb[1], rgb[2]);
+			}
+		}
+	}
 }
+
+
+/*
+public void nonMaximumSupression(int th1, int th2) {
+	int[][] gX = {{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}};
+	int[][] gY = {{-1, -2, -1}, {0, 0, 0}, {1, 2, 1}};
+	grayscale();
+	int maxG = -1;
+	int[][] edge = new int[width][height];
+	int[][] gArray = new int[width][height];
+	double[][] tArray = new double[width][height];
+		for(int w = 1; w < width-1; w++) {
+		for(int h = 1; h < height-1; h++) {
+			double pixel_x = (gX[0][0] * getR(w-1,h-1)) + (gX[0][2] * getR(w-1,h+1)) +
+		              (gX[1][0] * getR(w,h-1)) + (gX[1][2] * getR(w,h+1)) +
+		              (gX[2][0] * getR(w+1,h-1)) + (gX[2][2] * getR(w+1,h+1));
+		 
+		    double pixel_y = (gY[0][0] * getR(w-1,h-1)) + (gY[0][1] * getR(w-1,h)) + (gY[0][2] * getR(w-1,h+1)) +
+		              (gY[2][0] * getR(w+1,h-1)) + (gY[2][1] * getR(w+1,h)) + (gY[2][2] * getR(w+1,h+1));
+		    
+		    int g = (int) Math.hypot(pixel_x, pixel_y);
+		    edge[w][h] = g;
+		    
+		    //double theta = Math.atan2(pixel_y, pixel_x)*180/Math.PI;
+		    //double theta = Math.atan(pixel_y / pixel_x)*180/Math.PI;
+//		    if(theta < 0) {
+//		    	//theta += 360;
+//		    	//theta = Math.abs(theta);
+//		    	//System.out.println(theta);
+//		    	//theta += 180;
+//		    	theta += 180;
+//		    	//System.out.println(theta);
+//		    }
+		    theta = Math.abs(theta % 180);
+		    theta = roundTheta(theta);
+		    tArray[w][h] = theta;
+		    
+		    if(maxG < g) {
+		    	maxG = g;
+		    }
+		}
+	}
+		
+//		for(int w = 1; w < width-1; w++) {
+//			for(int h = 1; h < height-1; h++) {
+//				if(tArray[w][h] == 0) {
+//		    	if(edge[w][h] >= edge[w+1][h] && edge[w][h] >= edge[w-1][h]) {
+//		    		//edge[w][h] = edge[w][h];
+//		    	} else {
+//		    		edge[w][h] = 0;
+//		    	}
+//		    } else if(tArray[w][h] == 45) {
+//		    	if(edge[w][h] >= edge[w+1][h+1] && edge[w][h] >= edge[w-1][h-1]) {
+//		    		//edge[w][h] = edge[w][h];
+//		    	} else {
+//		    		edge[w][h] = 0;
+//		    	}
+//		    } else if(tArray[w][h] == 90) {
+//		    	if(edge[w][h] >= edge[w][h+1] && edge[w][h] >= edge[w][h-1]) {
+//		    		//edge[w][h] = edge[w][h];
+//		    	} else {
+//		    		edge[w][h] = 0;
+//		    	}
+//		    } else if(tArray[w][h] == 135) {
+//		    	if(edge[w][h] >= edge[w-1][h+1] && edge[w][h] >= edge[w+1][h-1]) {
+//		    		//edge[w][h] = edge[w][h];
+//		    	} else {
+//		    		edge[w][h] = 0;
+//		    	}
+//		    }
+//			}
+//		}
+*/

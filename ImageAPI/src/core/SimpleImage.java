@@ -17,7 +17,6 @@ public class SimpleImage {
 		this.path = path;
 		try {
 			img = ImageIO.read(new File(path));
-			System.out.println(img.getTransparency());
 			height = img.getHeight();
 			width = img.getWidth();
 		} catch (IOException e) {
@@ -31,10 +30,15 @@ public class SimpleImage {
 		img = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
 	}
 	
-	public SimpleImage(int w, int h, BufferedImage source) {
-		width = w;
-		height = h;
-		img = new BufferedImage(w, h, source.getType());
+	public SimpleImage copy() {
+		SimpleImage img2 = new SimpleImage(width, height);
+		for(int x = 0; x < width; x++) {
+			for(int y = 0; y < height; y++) {
+				int[] rgb = getRGB(x, y);
+				img2.setRGB(x, y, rgb[0], rgb[1], rgb[2]);
+			}
+		}
+		return img2;
 	}
 	
 	//TODO: single parameter
@@ -56,21 +60,15 @@ public class SimpleImage {
 		return img.getRGB(x, y);
 	}
 	
-	/*public int[] getRGBA(int x, int y) {
-		Color c = new Color(img.getRGB(x, y));
-		return new int[] {c.getRed(), c.getGreen(), c.getBlue(), c.getAlpha()};
-	}*/
-	
 	public void setRGB(int x, int y, int r, int g, int b) {
 		Color c = new Color(r, g, b);
 		img.setRGB(x, y, c.getRGB());
 	}
 	
-	/*public void setRGBA(int x, int y, int r, int g, int b, int a) {
-		Color c = new Color(r, g, b, a);
-		int rgb = c.getRGB();
-		img.setRGB(x, y, rgb);
-	}*/
+	public void setRGB(int x, int y, int rgb) {
+		Color c = new Color(rgb);
+		img.setRGB(x, y, c.getRGB());
+	}
 	
 	public int getWidth() { return width; }
 	public int getHeight() { return height; }
