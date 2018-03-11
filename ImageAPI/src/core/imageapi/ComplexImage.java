@@ -1,4 +1,4 @@
-package core;
+package core.imageapi;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -29,6 +29,10 @@ public class ComplexImage extends SimpleImage {
 		return img2;
 	}
 	
+	/**
+	 * Grayscales an image
+	 * This is the average value for the three channels
+	 */
 	public void grayscale() {
 		for(int x = 0; x < width; x++) {
 			for(int y = 0; y < height; y++) {
@@ -38,6 +42,11 @@ public class ComplexImage extends SimpleImage {
 		}
 	}
 	
+	/**
+	 * Grayscales an image
+	 * @param img image to grayscale
+	 * @return img grayscaled
+	 */
 	public static ComplexImage grayscale(ComplexImage img) {
 		ComplexImage temp = img.copy();
 		for(int x = 0; x < temp.width; x++) {
@@ -49,6 +58,10 @@ public class ComplexImage extends SimpleImage {
 		return temp;
 	}
 	
+	/**
+	 * Negates an image
+	 * This is (255-value) for each channel
+	 */
 	public void negate() {
 		for(int x = 0; x < width; x++) {
 			for(int y = 0; y < height; y++) {
@@ -59,6 +72,11 @@ public class ComplexImage extends SimpleImage {
 		}
 	}
 	
+	/**
+	 * Negates an image
+	 * @param img image to negate
+	 * @return img negated
+	 */
 	public static ComplexImage negate(ComplexImage img) {
 		ComplexImage temp = img.copy();
 		for(int x = 0; x < temp.width; x++) {
@@ -71,6 +89,10 @@ public class ComplexImage extends SimpleImage {
 		return temp;
 	}
 	
+	/**
+	 * Mirrors an image over its vertical axis
+	 * @param leftToRight half of the image to mirror over
+	 */
 	public void mirrorVertically(boolean leftToRight) {
 		if(leftToRight) {
 			for(int row = 0; row < height; row++) {
@@ -89,6 +111,10 @@ public class ComplexImage extends SimpleImage {
 		}
 	}
 	
+	/**
+	 * Mirrors an image over its horizontal axis
+	 * @param topToBottom half of the image to mirror over
+	 */
 	public void mirrorHorizontally(boolean topToBottom) {
 		if(topToBottom) {
 			for(int row = 0; row < height / 2; row++) {
@@ -107,6 +133,11 @@ public class ComplexImage extends SimpleImage {
 		}
 	}
 	
+	/**
+	 * Mirrors an image diagonally. If w != h, only a square region will be mirrored
+	 * @param c the corner to place the diagonal
+	 * @param bottomToTop section of the image to mirror over
+	 */
 	public void mirrorDiagonally(Corner c, boolean bottomToTop) {
 		int w2 = 0;
 		int h2 = 0;
@@ -133,7 +164,6 @@ public class ComplexImage extends SimpleImage {
 			int offset = region[0][0];
 			for(int h = region[0][1]; h < region[1][1]; h++) {
 				for(int w = region[0][0]; w < region[1][0]; w++) {
-					//if(c == Corner.TL || c == Corner.BR) {
 						if(bottomToTop) {
 							if(w < offset) {
 								int[] rgb = getRGB(w, h);
@@ -155,7 +185,6 @@ public class ComplexImage extends SimpleImage {
 								}
 							}
 						}
-					//}
 				}
 				offset++;
 			}
@@ -192,6 +221,10 @@ public class ComplexImage extends SimpleImage {
 		}
 	}
 	
+	/**
+	 * Blurs an image. This is slower but more accurate then box blur
+	 * @param k kernal size (1 = 3x3, 2 = 5x5, etc)
+	 */
 	public void gaussianBlur(int k) {
 		for(int w = 0; w < width; w++) {
 			for(int h = 0; h < height; h++) {
@@ -217,6 +250,10 @@ public class ComplexImage extends SimpleImage {
 		}
 	}
 	
+	/**
+	 * Blurs an image. This is faster but less accurate then guassian blur
+	 * @param k kernal size (1 = 3x3, 2 = 5x5, etc)
+	 */
 	public void boxBlur(int k) {
 		for(int w = 0; w < width; w++) {
 			for(int h = 0; h < height; h++) {
@@ -261,12 +298,20 @@ public class ComplexImage extends SimpleImage {
 		}
 	}
 	
+	/**
+	 * Applies canny edge detection to an image.
+	 * @param k kernal size (1 = 3x3, 2 = 5x5, etc)
+	 * @param th1 upper bounds for the threshold
+	 * @param th2 lower bound for the threshold
+	 */
 	public void cannyEdge(int k, int th1, int th2) {
 		boxBlur(k);
 		nonMaximumSupression(th1, th2);
 	}
 	
-	// https://stackoverflow.com/questions/41468661/sobel-edge-detecting-program-in-java
+	/**
+	 * Applies a sobel operator to an image. This is a less sophisticated version of canny edge
+	 */
 	public void sobelOperator() {
 		int[][] gX = {{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}};
 		int[][] gY = {{-1, -2, -1}, {0, 0, 0}, {1, 2, 1}};
@@ -300,17 +345,7 @@ public class ComplexImage extends SimpleImage {
 		}
 	}
 	
-	private double roundTheta(double t) {
-		//0 to 45 (22.5) t < 22.5: 0
-		//45 to 90 (67.5) t < 67.5: 45
-		//90 to 135 (112.5) t < 112.5: 90
-		//135 to 0 (157.5) t < 157.5: 135
-		
-		// t < 22.5 or t >= 157.5 : 0
-		// (t >= 22.5 and t <) or t < 67.5 : 45
-		// t >= 67.5 or t < 112.5 : 90
-		// t >= 112.5 or t < 157.5: 135
-		
+	protected double roundTheta(double t) {
 		if(t < 22.5 || t >= 157.5) {
 			t = 0;
 		} else if(t >= 22.5 && t < 67.5) {
@@ -320,22 +355,26 @@ public class ComplexImage extends SimpleImage {
 		} else if(t >= 112.5 && t < 157.5) {
 			t = 135;
 		}
-		
-		return t;
-		
+		return t;	
 	}
 	
-	public void nonMaximumSupression(int th1, int th2) {
+	/**
+	 * Applies the remain steps for canny edge after the first
+	 * @param th1
+	 * @param th2
+	 */
+	protected void nonMaximumSupression(int th1, int th2) {
 		int[][] gX = {{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}};
 		int[][] gY = {{1, 2, 1}, {0, 0, 0}, {-1, -2, -1}};
 		grayscale();
 		int maxG = -1;
 		double[][] edge = new double[width][height];
-		int[][] gArray = new int[width][height];
 		double[][] tArray = new double[width][height];
+		
+		// Non-max suppression
  		for(int w = 1; w < width-1; w++) {
 			for(int h = 1; h < height-1; h++) {
-				double pixel_x = (gX[0][0] * getR(w-1,h-1)) + (gX[0][2] * getR(w-1,h+1)) +
+			    double pixel_x = (gX[0][0] * getR(w-1,h-1)) + (gX[0][2] * getR(w-1,h+1)) +
 			              (gX[1][0] * getR(w,h-1)) + (gX[1][2] * getR(w,h+1)) +
 			              (gX[2][0] * getR(w+1,h-1)) + (gX[2][2] * getR(w+1,h+1));
 			 
@@ -346,18 +385,9 @@ public class ComplexImage extends SimpleImage {
 			    edge[w][h] = g;
 			    
 			    double theta = Math.atan2(pixel_y, pixel_x)*180/Math.PI;
-			    //double theta = Math.atan(pixel_y / pixel_x)*180/Math.PI;
-//			    if(theta < 0) {
-//			    	//theta += 360;
-//			    	//theta = Math.abs(theta);
-//			    	//System.out.println(theta);
-//			    	//theta += 180;
-//			    	theta += 180;
-//			    	//System.out.println(theta);
-//			    }
-			    //System.out.println("Before: " + theta);
-			    theta = Math.abs(theta % 180);
-			    //System.out.println("After: " + theta);
+			    if(theta < 0) {
+			    	theta += 180;
+			    }
 			    theta = roundTheta(theta);
 			    tArray[w][h] = theta;
 			    
@@ -366,38 +396,58 @@ public class ComplexImage extends SimpleImage {
 			    }
 			}
 		}
+ 		double scale = 255.0 / maxG;
  		
+ 		// Edge thining
  		for(int w = 1; w < width-1; w++) {
  			for(int h = 1; h < height-1; h++) {
  				if(tArray[w][h] == 0) { // 0
-			    	if(edge[w][h] >= edge[w][h-1] && edge[w][h] >= edge[w][h+1]) {
-			    		//edge[w][h] = edge[w][h];
-			    	} else {
+			    	if(edge[w][h] <= edge[w][h-1] || edge[w][h] <= edge[w][h+1]) {
 			    		edge[w][h] = 0;
 			    	}
 			    } else if(tArray[w][h] == 45) { // 45
-			    	if(edge[w][h] >= edge[w-1][h+1] && edge[w][h] >= edge[w+1][h-1]) {
-			    		//edge[w][h] = edge[w][h];
-			    	} else {
+			    	if(edge[w][h] <= edge[w-1][h+1] || edge[w][h] <= edge[w+1][h-1]) {
 			    		edge[w][h] = 0;
 			    	}
 			    } else if(tArray[w][h] == 90) { // 90
-			    	if(edge[w][h] >= edge[w-1][h] && edge[w][h] >= edge[w+1][h]) {
-			    		//edge[w][h] = edge[w][h];
-			    	} else {
+			    	if(edge[w][h] <= edge[w-1][h] || edge[w][h] <= edge[w+1][h]) {
 			    		edge[w][h] = 0;
 			    	}
 			    } else if(tArray[w][h] == 135) { // 135
-			    	if(edge[w][h] >= edge[w-1][h-1] && edge[w][h] >= edge[w+1][h+1]) {
-			    		//edge[w][h] = edge[w][h];
-			    	} else {
+			    	if(edge[w][h] <= edge[w-1][h-1] || edge[w][h] <= edge[w+1][h+1]) {
 			    		edge[w][h] = 0;
 			    	}
 			    }
  			}
  		}
+ 		
+ 		// Tresholding
+ 		for(int w = 1; w < width-1; w++) {
+ 			for(int h = 1; h < height-1; h++) {
+ 				if(edge[w][h] < th2) {
+ 					edge[w][h] = 0;
+ 				} else if(edge[w][h] < th1 && edge[w][h] > th2) {
+ 					edge[w][h] = maxG / 2;
+ 				} else if(edge[w][h] > th1) {
+ 					edge[w][h] = maxG;
+ 				}
+ 			}
+ 		}
+ 		
+ 		// Blob operator
+ 		for(int w = 2; w < width-2; w++) {
+ 			for(int h = 2; h < height-2; h++) {
+ 				if(edge[w][h] == maxG / 2) {
+ 					if(edge[w-1][h-1] != maxG && edge[w-1][h] != maxG && edge[w-1][h+1] != maxG
+ 							&& edge[w][h-1] != maxG && edge[w][h+1] != maxG
+ 							&& edge[w+1][h-1] != maxG && edge[w+1][h] != maxG && edge[w+1][h+1] != maxG) {
+ 						edge[w][h] = 0;
+ 					}
+				}
+ 			}
+ 		}
 	
-		double scale = 255.0 / maxG;
+ 		// Scaling
 		for(int w = 1; w < width-1; w++) {
 			for(int h = 1; h < height-1; h++) {
 				int edgeColor = (int) edge[w][h];
@@ -408,13 +458,16 @@ public class ComplexImage extends SimpleImage {
 		}
 	}
 	
+	/**
+	 * Applies a sobel operator to an image that includes edge color based on its angle. This is a less sophisticated version of canny edge
+	 */
 	public void sobelOperatorColor() {
 		int[][] gX = {{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}};
 		int[][] gY = {{-1, -2, -1}, {0, 0, 0}, {1, 2, 1}};
 		grayscale();
 		int maxG = -1;
 		int[][] edge = new int[width][height];
-		int[][] color = new int[width][height];
+		double[][] color = new double[width][height];
 		for(int w = 1; w < width-1; w++) {
 			for(int h = 1; h < height-1; h++) {
 				int pixel_x = (gX[0][0] * getR(w-1,h-1)) + (gX[0][2] * getR(w-1,h+1)) +
@@ -429,6 +482,8 @@ public class ComplexImage extends SimpleImage {
 			    }
 			    edge[w][h] = g;
 			    
+			    /*
+			    //TODO: Change?
 			    if(pixel_x != 0) {
 			    	color[w][h] = (int) Math.floor((Math.atan2(pixel_y, pixel_x)*180/Math.PI));
 			    	if(color[w][h] < 0) {
@@ -436,9 +491,18 @@ public class ComplexImage extends SimpleImage {
 			    	}
 			    } else {
 			    	color[w][h] = 0;
+			    }*/
+			    
+			    double theta = Math.atan2(pixel_y, pixel_x)*180/Math.PI;
+			    if(theta < 0) {
+			    	theta += 360;
+			    	color[w][h] = theta;
+			    } else {
+			    	color[w][h] = theta;
 			    }
 			}
 		}
+		
 		double scale = 255.0 / maxG;
 		for(int w = 1; w < width-1; w++) {
 			for(int h = 1; h < height-1; h++) {
@@ -450,76 +514,3 @@ public class ComplexImage extends SimpleImage {
 		}
 	}
 }
-
-
-/*
-public void nonMaximumSupression(int th1, int th2) {
-	int[][] gX = {{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}};
-	int[][] gY = {{-1, -2, -1}, {0, 0, 0}, {1, 2, 1}};
-	grayscale();
-	int maxG = -1;
-	int[][] edge = new int[width][height];
-	int[][] gArray = new int[width][height];
-	double[][] tArray = new double[width][height];
-		for(int w = 1; w < width-1; w++) {
-		for(int h = 1; h < height-1; h++) {
-			double pixel_x = (gX[0][0] * getR(w-1,h-1)) + (gX[0][2] * getR(w-1,h+1)) +
-		              (gX[1][0] * getR(w,h-1)) + (gX[1][2] * getR(w,h+1)) +
-		              (gX[2][0] * getR(w+1,h-1)) + (gX[2][2] * getR(w+1,h+1));
-		 
-		    double pixel_y = (gY[0][0] * getR(w-1,h-1)) + (gY[0][1] * getR(w-1,h)) + (gY[0][2] * getR(w-1,h+1)) +
-		              (gY[2][0] * getR(w+1,h-1)) + (gY[2][1] * getR(w+1,h)) + (gY[2][2] * getR(w+1,h+1));
-		    
-		    int g = (int) Math.hypot(pixel_x, pixel_y);
-		    edge[w][h] = g;
-		    
-		    //double theta = Math.atan2(pixel_y, pixel_x)*180/Math.PI;
-		    //double theta = Math.atan(pixel_y / pixel_x)*180/Math.PI;
-//		    if(theta < 0) {
-//		    	//theta += 360;
-//		    	//theta = Math.abs(theta);
-//		    	//System.out.println(theta);
-//		    	//theta += 180;
-//		    	theta += 180;
-//		    	//System.out.println(theta);
-//		    }
-		    theta = Math.abs(theta % 180);
-		    theta = roundTheta(theta);
-		    tArray[w][h] = theta;
-		    
-		    if(maxG < g) {
-		    	maxG = g;
-		    }
-		}
-	}
-		
-//		for(int w = 1; w < width-1; w++) {
-//			for(int h = 1; h < height-1; h++) {
-//				if(tArray[w][h] == 0) {
-//		    	if(edge[w][h] >= edge[w+1][h] && edge[w][h] >= edge[w-1][h]) {
-//		    		//edge[w][h] = edge[w][h];
-//		    	} else {
-//		    		edge[w][h] = 0;
-//		    	}
-//		    } else if(tArray[w][h] == 45) {
-//		    	if(edge[w][h] >= edge[w+1][h+1] && edge[w][h] >= edge[w-1][h-1]) {
-//		    		//edge[w][h] = edge[w][h];
-//		    	} else {
-//		    		edge[w][h] = 0;
-//		    	}
-//		    } else if(tArray[w][h] == 90) {
-//		    	if(edge[w][h] >= edge[w][h+1] && edge[w][h] >= edge[w][h-1]) {
-//		    		//edge[w][h] = edge[w][h];
-//		    	} else {
-//		    		edge[w][h] = 0;
-//		    	}
-//		    } else if(tArray[w][h] == 135) {
-//		    	if(edge[w][h] >= edge[w-1][h+1] && edge[w][h] >= edge[w+1][h-1]) {
-//		    		//edge[w][h] = edge[w][h];
-//		    	} else {
-//		    		edge[w][h] = 0;
-//		    	}
-//		    }
-//			}
-//		}
-*/
